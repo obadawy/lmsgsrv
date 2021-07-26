@@ -1,0 +1,49 @@
+SOURCES = $(shell echo *.c)
+HEADERS = $(shell echo *.h)
+OBJECTS = $(SOURCES:.c=.o)
+
+UNAME = $(shell uname)
+ifeq ($(UNAME), Linux)
+	LIBNAME = liblmsgsrv.so
+	LDFLAGS = -shared -Wl,-soname,$(LIBNAME).1
+endif
+ifeq ($(findstring CYGWIN, $(UNAME) ), CYGWIN)
+	LIBNAME = liblmsgsrv.dll
+	LDFLAGS = -shared  
+endif
+
+CC = gcc
+
+CPPFLAGS = -D_POSIX_C_SOURCE=200112L
+
+CFLAGS = -Wall -fPIC -g -std=c99
+
+$(LIBNAME): $(OBJECTS)
+ifeq ($(UNAME), Linux)
+	gcc -o $@.1.0 $(LDFLAGS) $^
+	ln -sf $@.1.0 $(LIBNAME).1
+	ln -sf $@.1.0 $(LIBNAME)
+else
+	gcc -o $@ $(LDFLAGS) $^
+endif
+	#/sbin/ldconfig -n .
+
+
+$(LIBNAME).a: $(OBJECTS)
+	ar rcs $@ $^
+
+.PHONY: install
+install: $(LIBNAME)
+ifeq ($(UNAME), Linux)
+	@-cp -v $(LIBNAME).1.0 ~/.local/lib/$(LIBNAME).1
+else
+	@-cp -v $(LIBNAME) /usr/local/bin
+endif
+
+.PHONY: clean
+clean:
+	@-rm -fv $(LIBNAME)*
+	@-rm -fv $(OBJECTS)
+	@-rm -fv ~/lib/$(LIBNAME).so
+	@-rm -fv /usr/local/bin/$(LIBNAME).dll
+
